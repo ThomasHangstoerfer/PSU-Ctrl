@@ -3,4 +3,4 @@ WebInterface to control a [Korad KD6005P](https://www.reichelt.com/de/de/Laborat
 
 To start PSU-Ctrl on system-boot, simply run 'run-psu-ctrl.sh' in /etc/rc.local.
 
-Then connect with a browser to http://<ip-address>:8888.
+Then connect with a browser to http://\<ip-address\>:8888.
