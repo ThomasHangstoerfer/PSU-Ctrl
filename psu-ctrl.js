@@ -29,120 +29,111 @@ PSUCommand.prototype.toString = function() {
     return this.cmd;
 };
 
-function PSUStatus(status) {
-	this.status = status;
+
+function PSUStatus() {
+    this.status = 0;
+    this.psu_id = ' - - - ';
+
+    this.modeCh1 = '';
+    this.modeCh2 = '';
+    this.beepOn = false;
+    this.locked = false;
+    this.output = false;
+
+    this.Iset = 0.0;
+    this.Vset = 0.0;
+    this.Iout = 0.0;
+    this.Vout = 0.0;
+
+    this.connected = false;
+    this.msg = '';
 }
 
 PSUStatus.prototype.setStatus = function(status) {
-	this.status = status[0]; // only use the first byte
-};
+    this.status = status; // only use the first byte
 
-PSUStatus.prototype.isOut = function() {
+    var bit0Set = !!(this.status & 0x01);
+    var bit1Set = !!(this.status & 0x02);
+    var bit2Set = !!(this.status & 0x04);
+    var bit3Set = !!(this.status & 0x08);
+    var bit4Set = !!(this.status & 0x10);
+    var bit5Set = !!(this.status & 0x20);
+    var bit6Set = !!(this.status & 0x40);
+    var bit7Set = !!(this.status & 0x80);
 
-	// bei OUT1 = ein -> status=A (00001010)
-this.status = 0x0A;
-	console.log('status: ' + this.status );
-	var bit0Set = !!(this.status & 0x01);
-	var bit1Set = !!(this.status & 0x02);
-	var bit2Set = !!(this.status & 0x04);
-	var bit3Set = !!(this.status & 0x08);
-	var bit4Set = !!(this.status & 0x10);
-	var bit5Set = !!(this.status & 0x20);
-	var bit6Set = !!(this.status & 0x40);
-	var bit7Set = !!(this.status & 0x80);
-	console.log('bit0Set: ' + bit0Set );
-	console.log('bit1Set: ' + bit1Set );
-	console.log('bit2Set: ' + bit2Set );
-	console.log('bit3Set: ' + bit3Set );
-	console.log('bit4Set: ' + bit4Set );
-	console.log('bit5Set: ' + bit5Set );
-	console.log('bit6Set: ' + bit6Set );
-	console.log('bit7Set: ' + bit7Set );
+    this.modeCh1 = bit0Set ? 'CV' : 'CC';
+    this.modeCh2 = bit1Set ? 'CV' : 'CC';
+    this.beepOn = bit4Set;
+    this.locked = !bit5Set;
+    this.output = bit6Set;
+}
 
 
+var psu_status = new PSUStatus();
+psu_status.setStatus(0xA);
 
+var updateAll = function() {
 
-
-
-    return bit6Set ;
-};
-
-var IDN = '';
-var ISET1 = '';
-var VSET1 = '';
-var IOUT1 = '';
-var VOUT1 = '';
-var STATUS = new PSUStatus(0);
-
-
-var update = function() {
-
+    sendCmd('*IDN?', function(cmd, result) {
+        console.log(cmd + ' -> ' + result);
+        psu_status.psu_id = result.toString('utf8');
+    });
     sendCmd('ISET1?', function(cmd, result) {
         console.log(cmd + ' -> ' + result);
-        ISET1 = result.toString('utf8')
+        psu_status.Iset = parseFloat(result.toString('utf8')).toFixed(2);
     });
     sendCmd('VSET1?', function(cmd, result) {
         console.log(cmd + ' -> ' + result);
-        VSET1 = result.toString('utf8')
+        psu_status.Vset = parseFloat(result.toString('utf8')).toFixed(2);
     });
     sendCmd('IOUT1?', function(cmd, result) {
         console.log(cmd + ' -> ' + result);
-        IOUT1 = result.toString('utf8')
+        psu_status.Iout = parseFloat(result.toString('utf8')).toFixed(2);
     });
     sendCmd('VOUT1?', function(cmd, result) {
         console.log(cmd + ' -> ' + result);
-        VOUT1 = result.toString('utf8')
+        psu_status.Vout = parseFloat(result.toString('utf8')).toFixed(2);
     });
-    sendCmd('STATUS?', function(cmd, result) { console.log(cmd + ' -> ' + result);
-        STATUS.setStatus(result);
-        console.log('STATUS = ' + STATUS.isOut() );
-         }); // TODO evaluate the bits in the result-byte
+    sendCmd('STATUS?', function(cmd, result) {
+        console.log(cmd + ' -> ' + result);
+        psu_status.setStatus(parseInt(result[0]));
+        console.log('psu_status = ' + psu_status.output );
+    });
 
-    setTimeout(update, 1000);
+    setTimeout(updateAll, 1000);
 }
 
 
 serial_port.on('open', function() {
     console.log('on_open()');
-    sendCmd('*IDN?', function(cmd, result) {
-        console.log(cmd + ' -> ' + result);
-        IDN = result.toString('utf8')
-    });
-    sendCmd('ISET1?', function(cmd, result) {
-        console.log(cmd + ' -> ' + result);
-        ISET1 = result.toString('utf8')
-    });
-    sendCmd('VSET1?', function(cmd, result) {
-        console.log(cmd + ' -> ' + result);
-        VSET1 = result.toString('utf8')
-    });
-    sendCmd('IOUT1?', function(cmd, result) {
-        console.log(cmd + ' -> ' + result);
-        IOUT1 = result.toString('utf8')
-    });
-    sendCmd('VOUT1?', function(cmd, result) {
-        console.log(cmd + ' -> ' + result);
-        VOUT1 = result.toString('utf8')
-    });
-    sendCmd('STATUS?', function(cmd, result) { console.log(cmd + ' -> ' + result); }); // TODO evaluate the bits in the result-byte
+    psu_status.connected = true;
+    psu_status.msg = '';
+    
 
-    setTimeout(update, 1000);
+    setTimeout(updateAll, 1000);
 });
+
+serial_port.on('error', function(err) {
+    console.log('on_error()' + err);
+    psu_status.connected = false;
+    psu_status.msg = err.toString();
+});
+
 
 var currentCommand = undefined;
 
 var cmd_queue = [];
 
 function sendCmd(cmd, callback) {
-    //console.log('sendCmd(' + cmd + ')');
+    console.log('sendCmd(' + cmd + ')');
     var newCmd = new PSUCommand(cmd, callback);
     if (currentCommand == undefined) {
-        //console.log('send');
+        console.log('send');
         currentCommand = newCmd;
         serial_port.write(currentCommand.cmd);
 
     } else {
-        //console.log('enqueue');
+        console.log('enqueue');
         cmd_queue.push(newCmd);
     }
 }
@@ -187,29 +178,82 @@ serial_port.on('data', function(data) {
 
 
 
-function psu_send_cmd(cmd) {
-    console.log('psu_send_cmd( ' + cmd + ' )');
-    exec("echo -n " + cmd + " > /dev/ttyACM0", (error, stdout, stderr) => {
-        //console.log('Ok');
-    })
-}
+const srv = http.createServer(function(request, response) {
 
-function psu_switch_on() {
-    psu_send_cmd('OUT1');
-}
-
-function psu_switch_off() {
-    psu_send_cmd('OUT0');
-}
-
-http.createServer(function(request, response) {
-
-    var uri = url.parse(request.url).pathname,
-        filename = path.join(process.cwd(), uri),
+    var uri_full = url.parse(request.url, true),
+        uri = uri_full.pathname,
+        doc_root = path.join(process.cwd(), 'web'),
+        filename = path.join(doc_root, uri),
         html_content = '',
         html_message = '';
-    console.log('uri: ' + uri);
+    console.log('uri_full: ', uri_full);
 
+    console.log('filename: ' + filename);
+
+    if ( (fs.existsSync(filename)&&uri_full.pathname !== '/') || (uri_full.pathname === '/' && uri_full.search === '') ) {
+        if (fs.statSync(filename).isDirectory()) filename += '/index.html';
+        console.log('filename: ' + filename);
+        if (fs.statSync(filename).isFile()) {
+            console.log('filename: ' + filename);
+            fs.readFile(filename, "binary", function(err, file) {
+                if (err) {
+                    console.log('err: ' + err);
+                    response.writeHead(500, { "Content-Type": "text/plain" });
+                    //response.write(err + "\n");
+                    response.end();
+                    return;
+                }
+                response.writeHead(200);
+                response.write(file, "binary");
+                response.end();
+                return;
+            });
+            return;
+        }
+    } else {
+        console.log(filename + ' does not exist');
+
+    }
+    console.log('uri_full.query: ', uri_full.query);
+
+    var handled = false;
+    var resultString = '';
+
+    if ( uri_full.query.cmd !== undefined ) {
+        console.log('cmd found: ' + uri_full.query.cmd);
+
+        sendCmd(uri_full.query.cmd, function(cmd, result) {
+            console.log(cmd + ' -> ' + result);
+        });
+        handled = true;
+        resultString = 'Ok';
+    }
+    if ( uri_full.query.status !== undefined ) {
+        console.log('status request found ');
+        handled = true;
+        psu_status.Iout = (Math.random() * 10) + 1;
+        psu_status.Iout = psu_status.Iout.toFixed(2);
+        console.log('psu_status.Iout = ' + psu_status.Iout );
+        psu_status.Vout = (Math.random() * 20) + 1;
+        psu_status.Vout = psu_status.Vout.toFixed(2);
+        resultString = JSON.stringify(psu_status);
+        console.log('resultString: ' + resultString );
+    }
+
+
+
+    if ( handled ) {
+        response.writeHead(200, { "Content-Type": "text/html" });
+        response.write(resultString);
+        response.end();
+    }
+    else
+    {
+        response.writeHead(404, { "Content-Type": "text/html" });
+        response.write('Invalid request');
+        response.end();
+    }
+/*
     const html_head = "<html><head><title>PSU-Control</title></head><body><h1>" + IDN + "</h1>";
     var html_buttons = "<br/><br/><br/><div>";
     html_buttons += "<button style='font-size: large;' onclick=\"window.location.href='/on'\">ON</button>&nbsp;&nbsp;&nbsp;&nbsp;";
@@ -230,14 +274,29 @@ http.createServer(function(request, response) {
     } else {
         html_content = "<h1><a href='/on'>ON</a>&nbsp;&nbsp;&nbsp;<a href='/off'>OFF</a></h1>";
         if (uri.toLowerCase() === '/on') {
-            psu_switch_on();
+            sendCmd('OUT1', function(cmd, result) { console.log(cmd + ' -> ' + result); });
         } else if (uri.toLowerCase() === '/off') {
-            psu_switch_off();
+            sendCmd('OUT0', function(cmd, result) { console.log(cmd + ' -> ' + result); });
         }
     }
     response.writeHead(200, { "Content-Type": "text/html" });
     response.write(html_head + html_buttons + html_message + html_status + html_foot);
     response.end();
-}).listen(parseInt(port, 10));
+*/
+});
+
+
+srv.on('upgrade', (req, socket, head) => {
+    console.log('upgrade');
+  socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
+               'Upgrade: WebSocket\r\n' +
+               'Connection: Upgrade\r\n' +
+               '\r\n');
+
+//  socket.pipe(socket); // echo back
+});
+
+srv.listen(parseInt(port, 10));
+
 
 console.log("PSU-Control running at\n  => http://localhost:" + port + "/\nCTRL + C to shutdown");

@@ -2,9 +2,9 @@
   "name": "PSU-Control",
   "version": "0.1.0",
   "description": "WebInterface to control a Korad KD6005P power supply unit.",
-  "scripts": {
-  },
+  "scripts": {},
   "dependencies": {
-    "serialport": "^6.0.4"
-}
+    "serialport": "^6.0.4",
+    "ws": "^3.3.2"
+  }
 }

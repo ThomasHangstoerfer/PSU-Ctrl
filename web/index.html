@@ -1,0 +1,139 @@
+<html>
+<style>
+.exampleContainer {
+    display: inline-block;
+    background-color: Black;
+    border-radius: 5px;
+    margin-left: 12px;
+}
+
+.resizableExample {
+    margin: 1em;
+    padding: 0.5em;
+    height: 120px;
+    width: 80px;
+}
+
+.resizableExample div:first-child {
+    height: 100%;
+}
+</style>
+<script src="jquery.min.js"></script>
+<script src="jquery-ui.min.js"></script>
+<script src="sevenSeg.js"></script>
+<script language="javascript" type="text/javascript">
+jQuery(function() {
+
+    $("#7Seg_Voltage").sevenSeg({ digits: 4, value: 0.000 });
+    $("#7Seg_Current").sevenSeg({ digits: 4, value: 0.000 });
+
+    setInterval(function() {
+
+        $.getJSON("?status", function(status) {
+
+            if (status.connected != undefined) {
+
+                if (status.connected) {
+
+                    if (status.Iout != undefined) {
+                        $("#7Seg_Current").sevenSeg({ digits: 4, value: status.Iout });
+                    }
+                    if (status.Vout != undefined) {
+                        $("#7Seg_Voltage").sevenSeg({ digits: 4, value: status.Vout });
+
+                    }
+                    if (status.psu_id != undefined) {
+                        $("#IDN").text(status.psu_id);
+                    }
+                }
+                else
+                {
+                        $("#message").text(status.msg);
+
+                }
+  
+            }
+
+            //var items = [];
+            //$.each(status, function(key, val) {
+            //    items.push("<li id='" + key + "'>" + val + "</li>");
+            //});
+            //$("<ul/>", {
+            //    "class": "my-new-list",
+            //    html: items.join("")
+            //}).appendTo("body");
+        });
+
+    }, 2000);
+
+    $("#btn_on").click(function() {
+        console.log("btn_on");
+        $.get("?cmd=OUT1", function(data) {});
+    });
+    $("#btn_off").click(function() {
+        console.log("btn_off");
+        $.get("?cmd=OUT0", function(data) {});
+    });
+
+
+});
+</script>
+
+<head>
+    <title>PSU-Control</title>
+</head>
+
+<body style="background-color:white;">
+    <br/>
+    <div id='message' style="color: red;"></div>
+    <table border="0px">
+        <tr>
+            <td align="center" colspan=2>
+                <h1><div id='IDN'></div></h1></td>
+        </tr>
+        <tr>
+            <td colspan=2>
+                <table>
+                    <tr>
+                        <td>
+                            <div>V</div>
+                        </td>
+                        <td>
+                            <div id="testResizableDiv1" class="exampleContainer resizableExample" style="width: 275px;">
+                                <div id="7Seg_Voltage"></div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td colspan=2>
+                <table>
+                    <tr>
+                        <td>
+                            <div>A</div>
+                        </td>
+                        <td>
+                            <div id="testResizableDiv2" class="exampleContainer resizableExample" style="width: 275px;">
+                                <div id="7Seg_Current"></div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td align="center">
+                <!-- button id='btn_on' style='font-size: large;' onclick="window.location.href='/on'">ON</button -->
+                <button id='btn_on' style='font-size: large;'>ON</button>
+            </td>
+            <td align="center">
+                <!-- button id='btn_off'  style='font-size: large;' onclick="window.location.href='/off'">OFF</button -->
+                <button id='btn_off' style='font-size: large;'>OFF</button>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>
