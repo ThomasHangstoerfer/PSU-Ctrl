@@ -12,3 +12,6 @@ To start PSU-Ctrl on system-boot, simply run 'run-psu-ctrl.sh' in /etc/rc.local.
 Then connect with a browser to http://\<ip-address\>:8888.
 
 ![KD6005P](https://cdn-reichelt.de/bilder/web/xxl_ws/D400/KD3005_02.png)
+
+![WebApp](https://raw.githubusercontent.com/ThomasHangstoerfer/PSU-Ctrl/master/web/psu-ctrl.jpg)
+
