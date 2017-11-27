@@ -1,3 +1,10 @@
+
+// PSU-Ctrl
+// Author: thomas@bitcoder.de
+
+
+
+
 // https://gist.github.com/ryanflorence/701407
 
 // http://brandonlwhite.github.io/sevenSeg.js/
@@ -75,29 +82,30 @@ psu_status.setStatus(0xA);
 var updateAll = function() {
 
     sendCmd('*IDN?', function(cmd, result) {
-        console.log(cmd + ' -> ' + result);
+        //console.log(cmd + ' -> ' + result);
         psu_status.psu_id = result.toString('utf8');
+	psu_status.psu_id = psu_status.psu_id.substr(0, psu_status.psu_id.indexOf('\u0000'));
     });
     sendCmd('ISET1?', function(cmd, result) {
-        console.log(cmd + ' -> ' + result);
+        //console.log(cmd + ' -> ' + result);
         psu_status.Iset = parseFloat(result.toString('utf8')).toFixed(2);
     });
     sendCmd('VSET1?', function(cmd, result) {
-        console.log(cmd + ' -> ' + result);
+        //console.log(cmd + ' -> ' + result);
         psu_status.Vset = parseFloat(result.toString('utf8')).toFixed(2);
     });
     sendCmd('IOUT1?', function(cmd, result) {
-        console.log(cmd + ' -> ' + result);
+        //console.log(cmd + ' -> ' + result);
         psu_status.Iout = parseFloat(result.toString('utf8')).toFixed(2);
     });
     sendCmd('VOUT1?', function(cmd, result) {
-        console.log(cmd + ' -> ' + result);
+        //console.log(cmd + ' -> ' + result);
         psu_status.Vout = parseFloat(result.toString('utf8')).toFixed(2);
     });
     sendCmd('STATUS?', function(cmd, result) {
-        console.log(cmd + ' -> ' + result);
+        //console.log(cmd + ' -> ' + result);
         psu_status.setStatus(parseInt(result[0]));
-        console.log('psu_status = ' + psu_status.output );
+        //console.log('psu_status.output = ' + psu_status.output );
     });
 
     setTimeout(updateAll, 1000);
@@ -125,15 +133,15 @@ var currentCommand = undefined;
 var cmd_queue = [];
 
 function sendCmd(cmd, callback) {
-    console.log('sendCmd(' + cmd + ')');
+    //console.log('sendCmd(' + cmd + ')');
     var newCmd = new PSUCommand(cmd, callback);
     if (currentCommand == undefined) {
-        console.log('send');
+        //console.log('send');
         currentCommand = newCmd;
         serial_port.write(currentCommand.cmd);
 
     } else {
-        console.log('enqueue');
+        //console.log('enqueue');
         cmd_queue.push(newCmd);
     }
 }
@@ -183,15 +191,25 @@ const srv = http.createServer(function(request, response) {
     var uri_full = url.parse(request.url, true),
         uri = uri_full.pathname,
         doc_root = path.join(process.cwd(), 'web'),
-        filename = path.join(doc_root, uri),
+        filename = '',
         html_content = '',
-        html_message = '';
+        html_message = '',
+	handled = false;
     console.log('uri_full: ', uri_full);
 
-    console.log('filename: ' + filename);
+	if (uri_full.search == undefined ) {
+		if ( uri === '' || uri === '/' ) {
+	        	filename = path.join(doc_root, "index.html");
+		}
+		else {
+			if ( fs.existsSync(path.join(doc_root, uri)) ) {
+				filename = path.join(doc_root, uri);
+			}
+		}
+		console.log('filename: ' + filename);
 
-    if ( (fs.existsSync(filename)&&uri_full.pathname !== '/') || (uri_full.pathname === '/' && uri_full.search === '') ) {
-        if (fs.statSync(filename).isDirectory()) filename += '/index.html';
+    if ( (fs.existsSync(filename)) ) { // && uri_full.pathname !== '/') 
+
         console.log('filename: ' + filename);
         if (fs.statSync(filename).isFile()) {
             console.log('filename: ' + filename);
@@ -214,10 +232,9 @@ const srv = http.createServer(function(request, response) {
         console.log(filename + ' does not exist');
 
     }
+}
     console.log('uri_full.query: ', uri_full.query);
 
-    var handled = false;
-    var resultString = '';
 
     if ( uri_full.query.cmd !== undefined ) {
         console.log('cmd found: ' + uri_full.query.cmd);
@@ -231,11 +248,11 @@ const srv = http.createServer(function(request, response) {
     if ( uri_full.query.status !== undefined ) {
         console.log('status request found ');
         handled = true;
-        psu_status.Iout = (Math.random() * 10) + 1;
-        psu_status.Iout = psu_status.Iout.toFixed(2);
+        //psu_status.Iout = (Math.random() * 10) + 1;
+        //psu_status.Iout = psu_status.Iout.toFixed(2);
         console.log('psu_status.Iout = ' + psu_status.Iout );
-        psu_status.Vout = (Math.random() * 20) + 1;
-        psu_status.Vout = psu_status.Vout.toFixed(2);
+        //psu_status.Vout = (Math.random() * 20) + 1;
+        //psu_status.Vout = psu_status.Vout.toFixed(2);
         resultString = JSON.stringify(psu_status);
         console.log('resultString: ' + resultString );
     }
@@ -253,36 +270,6 @@ const srv = http.createServer(function(request, response) {
         response.write('Invalid request');
         response.end();
     }
-/*
-    const html_head = "<html><head><title>PSU-Control</title></head><body><h1>" + IDN + "</h1>";
-    var html_buttons = "<br/><br/><br/><div>";
-    html_buttons += "<button style='font-size: large;' onclick=\"window.location.href='/on'\">ON</button>&nbsp;&nbsp;&nbsp;&nbsp;";
-    html_buttons += "<button style='font-size: large;' onclick=\"window.location.href='/off'\">OFF</button>";
-    html_buttons += "</div><br/><br/><br/>";
-    html_status = '<table>';
-    html_status += '<tr><td>IDN</td><td>' + IDN + '</td></tr>';
-    html_status += '<tr><td>ISET1</td><td>' + ISET1 + '</td></tr>';
-    html_status += '<tr><td>VSET1</td><td>' + VSET1 + '</td></tr>';
-    html_status += '<tr><td>IOUT1</td><td>' + IOUT1 + '</td></tr>';
-    html_status += '<tr><td>VOUT1</td><td>' + VOUT1 + '</td></tr>';
-    html_status += '</table>';
-
-    const html_foot = "</body></html>";
-
-    if (!fs.existsSync(tty_dev)) {
-        html_message = '<div style="color: red;">PSU not connected (' + tty_dev + ' not found)</div>';
-    } else {
-        html_content = "<h1><a href='/on'>ON</a>&nbsp;&nbsp;&nbsp;<a href='/off'>OFF</a></h1>";
-        if (uri.toLowerCase() === '/on') {
-            sendCmd('OUT1', function(cmd, result) { console.log(cmd + ' -> ' + result); });
-        } else if (uri.toLowerCase() === '/off') {
-            sendCmd('OUT0', function(cmd, result) { console.log(cmd + ' -> ' + result); });
-        }
-    }
-    response.writeHead(200, { "Content-Type": "text/html" });
-    response.write(html_head + html_buttons + html_message + html_status + html_foot);
-    response.end();
-*/
 });
 
 
