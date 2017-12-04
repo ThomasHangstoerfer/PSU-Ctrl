@@ -131,6 +131,18 @@ serial_port.on('error', function(err) {
 var currentCommand = undefined;
 
 var cmd_queue = [];
+var comm_timeout = {};
+function cmd_timedout() {
+    clearTimeout(comm_timeout);
+    comm_timeout = undefined;
+    console.log('comand timed out');
+    currentCommand = undefined;
+    if (cmd_queue.length > 0) {
+            //console.log('send next command from queue');
+            var c = cmd_queue.shift();
+            sendCmd(c.cmd, c.callback);
+    }
+}
 
 function sendCmd(cmd, callback) {
     //console.log('sendCmd(' + cmd + ')');
@@ -139,7 +151,7 @@ function sendCmd(cmd, callback) {
         //console.log('send');
         currentCommand = newCmd;
         serial_port.write(currentCommand.cmd);
-
+	comm_timeout = setTimeout(cmd_timedout, 1000);
     } else {
         //console.log('enqueue');
         cmd_queue.push(newCmd);
@@ -151,7 +163,9 @@ var receiveBuffer = Buffer.alloc(50, 0);
 var receiveBufferOffset = 0;
 
 serial_port.on('data', function(data) {
-    //console.log('Data(' + data.length + '): ', data, ' toString(): ' + data.toString('utf8'));
+    clearTimeout(comm_timeout);
+    comm_timeout = undefined;
+    console.log('Data(' + data.length + '): ', data, ' toString(): ' + data.toString('utf8'));
     //buf.copy(target[, targetStart[, sourceStart[, sourceEnd]]])
     data.copy(receiveBuffer, receiveBufferOffset);
     receiveBufferOffset += data.length;
